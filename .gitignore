@@ -1,0 +1,45 @@
+# Binaries
+bin/
+build/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binary, build with "go test -c"
+*.test
+
+# Output of the go coverage tool, specifically when used with LiteIDE
+*.out
+
+# Dependency directories
+vendor/
+
+# Go module files
+go.sum
+
+# IDE files
+.idea/
+*.swp
+*.swo
+*.sublime-workspace
+*.sublime-project
+
+# MacOS
+.DS_Store
+
+# Logs
+*.log
+
+# Environment files
+.env
+
+# Docker files
+docker-compose.override.yml
+
+# Kubernetes files
+.kube/
+
+# GoLand IDE files
+*.iml
