@@ -9,17 +9,32 @@ services:
     image: matcher
     command: ["./main"]
     volumes:
-      - ./matcher:/app
+      - .:/app
     ports:
       - "8080:8080"
     env_file:
-      - ./.env
+      - .env
     depends_on:
       - db
     networks:
       - matcher_network
 
-  # Uncomment and configure if needed
+  db:
+    image: postgres:latest
+    container_name: ${POSTGRES_CONTAINER}
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "${POSTGRES_PORT}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    env_file:
+      - .env
+    networks:
+      - matcher_network
+  
   # nginx:
   #   container_name: matcher_nginx
   #   build:
@@ -35,25 +50,7 @@ services:
   #   networks:
   #     - matcher_network
 
-  db:
-    image: postgres:latest
-    container_name: postgres_db
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-    ports:
-      - "${POSTGRES_PORT}:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    env_file:
-      - ./.env
-    networks:
-      - matcher_network
-
 volumes:
-  static_volume:
-  media_volume:
   postgres_data:
 
 networks:
