@@ -6,13 +6,10 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-      cache_from:
-        - matcher
     image: matcher
     command: ["./main"]
     volumes:
-      - ./matcher:/matcher/
-
+      - ./matcher:/app
     ports:
       - "8080:8080"
     env_file:
@@ -22,6 +19,7 @@ services:
     networks:
       - matcher_network
 
+  # Uncomment and configure if needed
   # nginx:
   #   container_name: matcher_nginx
   #   build:
@@ -31,15 +29,15 @@ services:
   #     - static_volume:/matcher/staticfiles
   #     - media_volume:/matcher/mediafiles
   #   ports:
-  #     - 80:80
+  #     - "80:80"
   #   depends_on:
-  #     - web
+  #     - api
   #   networks:
   #     - matcher_network
 
   db:
     image: postgres:latest
-    container_name: ${POSTGRES_HOST}
+    container_name: postgres_db
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
