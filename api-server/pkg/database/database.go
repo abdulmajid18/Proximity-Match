@@ -15,7 +15,7 @@ var db *gorm.DB
 
 func InitDB() {
 	// Load environment variables from .env file
-	if err := godotenv.Load(".env"); err != nil {
+	if err := godotenv.Load(); err != nil {
 		log.Fatalf("Error loading .env file: %v", err)
 	}
 
@@ -29,7 +29,8 @@ func InitDB() {
 	// Construct connection string
 	dsn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
 		host, port, user, password, dbname)
-
+	log.Println("****************************************************")
+	print(dsn)
 	// Open a DB connection
 	var err error
 	db, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
