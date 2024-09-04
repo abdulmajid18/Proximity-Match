@@ -29,8 +29,7 @@ func InitDB() {
 	// Construct connection string
 	dsn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
 		host, port, user, password, dbname)
-	log.Println("****************************************************")
-	print(dsn)
+
 	// Open a DB connection
 	var err error
 	db, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
