@@ -1,15 +1,20 @@
 package main
 
 import (
+	"context"
 	"log"
 	"os"
+
+	"websocket-server/database"
 	"websocket-server/internal/handler"
 	"websocket-server/internal/repository"
-	"websocket-server/pkg/database"
+	"websocket-server/redis"
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 )
+
+var ctx = context.Background()
 
 func main() {
 	err := godotenv.Load()
@@ -21,10 +26,12 @@ func main() {
 		log.Fatalf("CASSANDRA_KEYSPACE environment variable is not set")
 	}
 	database.Init(keyspace)
+	redis.InitClient(ctx)
+	redisCache := redis.NewRedisCache(ctx, redis.GetClient())
 
 	cassandraSession := database.GetSession()
 	locationRepo := repository.NewLocationRepo(cassandraSession, keyspace)
-	webSocketHandler := handler.NewWebSocketHandler(locationRepo)
+	webSocketHandler := handler.NewWebSocketHandler(locationRepo, redisCache)
 	handleLocationWebSocket := webSocketHandler.HandleWebSocket
 
 	r := gin.Default()
