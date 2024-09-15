@@ -2,7 +2,6 @@ package redis
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log"
 	"matching-service/websocket-server/internal/models"
@@ -26,16 +25,26 @@ func NewRedisCache(ctx context.Context, redisClient *redis.Client) RedisCacheHan
 
 // StoreLocation saves the location in Redis and returns the saved location
 func (r *RedisCache) StoreLocation(location models.Location) (models.Location, error) {
-	locationJson, err := json.Marshal(location)
-	if err != nil {
-		return models.Location{}, fmt.Errorf("could not marshal location: %w", err)
+	var err error
+	currentLocation := redis.GeoLocation{
+		Name:      location.UserId,
+		Latitude:  location.CurrentLatitude,
+		Longitude: location.CurrentLongitude,
 	}
+	destination := [2]float64{location.DestinationLongitude, location.DestinationLatitude}
 
-	err = r.redisClient.Set(r.ctx, location.UserId, locationJson, 60*time.Second).Err()
+	_, err = r.redisClient.GeoAdd(r.ctx, location.UserId, &currentLocation).Result()
 	if err != nil {
 		return models.Location{}, fmt.Errorf("could not store user in Redis: %w", err)
 	}
+	r.redisClient.Expire(r.ctx, location.UserId, 60*time.Second)
 
+	err = r.redisClient.HSet(r.ctx, location.UserId, fmt.Sprintf("%f,%f", destination[0], destination[1])).Err()
+	if err != nil {
+		log.Fatalf("Error adding destination: %v", err)
+	}
+
+	log.Printf("Added user %s with current location and destination.\n", location.UserId)
 	return location, nil
 }
 
