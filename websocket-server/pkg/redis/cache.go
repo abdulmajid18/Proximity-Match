@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"matching-service/websocket-server/internal/models"
 	"time"
+	"websocket-server/internal/models"
 
 	"github.com/redis/go-redis/v9"
 )
@@ -31,7 +31,7 @@ func (r *RedisCache) StoreLocation(location models.Location) (models.Location, e
 		Latitude:  location.CurrentLatitude,
 		Longitude: location.CurrentLongitude,
 	}
-	destination := [2]float64{location.DestinationLongitude, location.DestinationLatitude}
+	destination := [2]float64{location.DestinationLatitude, location.DestinationLongitude}
 
 	_, err = r.redisClient.GeoAdd(r.ctx, location.UserId, &currentLocation).Result()
 	if err != nil {
