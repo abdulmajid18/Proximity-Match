@@ -12,6 +12,7 @@ var redisClent *redis.Client
 
 func InitClient(ctx context.Context, port string, host string) {
 	address := fmt.Sprintf("%s:%s", host, port)
+	fmt.Printf("Connecting to Redis at %s\n", address)
 	redisClent = redis.NewClient(&redis.Options{
 		Addr:     address,
 		Password: "", // no password set

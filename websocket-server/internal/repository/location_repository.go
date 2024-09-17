@@ -1,8 +1,8 @@
 package repository
 
 import (
+	"matching-service/websocket-server/internal/models"
 	"time"
-	"websocket-server/internal/models"
 
 	"github.com/gocql/gocql"
 	"github.com/google/uuid"

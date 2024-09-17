@@ -4,14 +4,16 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"matching-service/websocket-server/internal/models"
 	"time"
-	"websocket-server/internal/models"
 
 	"github.com/redis/go-redis/v9"
 )
 
 type RedisCacheHandler interface {
 	StoreLocation(location models.Location) (models.Location, error)
+	Getlocation(key string) (models.Location, error)
+	RefreshTTL(key string, ttl time.Duration, interval time.Duration, stopChan chan bool)
 }
 
 type RedisCache struct {
@@ -21,6 +23,37 @@ type RedisCache struct {
 
 func NewRedisCache(ctx context.Context, redisClient *redis.Client) RedisCacheHandler {
 	return &RedisCache{ctx: ctx, redisClient: redisClient}
+}
+
+func (r *RedisCache) Getlocation(key string) (models.Location, error) {
+	location := models.Location{}
+	geoLocation, err := r.redisClient.GeoPos(r.ctx, "user_locations", key).Result()
+	if err == redis.Nil {
+		return location, fmt.Errorf("user %s not found in Redis", key)
+	} else if err != nil {
+		return location, fmt.Errorf("error getting user location from Redis: %w", err)
+	}
+
+	location.UserId = key
+	location.CurrentLatitude = geoLocation[0].Latitude
+	location.CurrentLongitude = geoLocation[0].Longitude
+
+	destination, err := r.redisClient.HMGet(r.ctx, key, "destination_lat", "destination_lon").Result()
+	if err == redis.Nil {
+		log.Printf("Destination for user %s not found in Redis\n", key)
+	} else if err != nil {
+		return location, fmt.Errorf("error getting user destination from Redis")
+	}
+
+	location.DestinationLatitude = parseFloat(destination[0])
+	location.DestinationLongitude = parseFloat(destination[1])
+
+	return location, nil
+}
+
+func parseFloat(v interface{}) float64 {
+	f, _ := v.(float64)
+	return f
 }
 
 // StoreLocation saves the location in Redis and returns the saved location
