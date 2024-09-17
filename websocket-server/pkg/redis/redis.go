@@ -2,6 +2,7 @@ package redis
 
 import (
 	"context"
+	"fmt"
 	"log"
 
 	"github.com/redis/go-redis/v9"
@@ -9,9 +10,10 @@ import (
 
 var redisClent *redis.Client
 
-func InitClient(ctx context.Context) {
+func InitClient(ctx context.Context, port string, host string) {
+	address := fmt.Sprintf("%s:%s", host, port)
 	redisClent = redis.NewClient(&redis.Options{
-		Addr:     "localhost:6379",
+		Addr:     address,
 		Password: "", // no password set
 		DB:       0,  // use default DB
 	})
@@ -19,7 +21,6 @@ func InitClient(ctx context.Context) {
 	if err != nil {
 		log.Fatalf("Redis server couln't connect %v", err)
 	}
-
 }
 
 func GetClient() *redis.Client {
