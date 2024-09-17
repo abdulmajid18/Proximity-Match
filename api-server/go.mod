@@ -1,4 +1,4 @@
-module matching-service
+module matching-service/matching-service
 
 go 1.23.0
 
