@@ -15,6 +15,7 @@ type LocationRepository interface {
 	UpdateCurrentLocation(userID uuid.UUID, latitude float64, longitude float64) error
 	Update(location models.Location) error
 	Delete(userID uuid.UUID) error
+	GetAllLocations() ([]models.Location, error)
 }
 
 type LocationRepo struct {
@@ -24,6 +25,20 @@ type LocationRepo struct {
 
 func NewLocationRepo(session *gocql.Session, keyspace string) LocationRepository {
 	return &LocationRepo{session: session, keyspace: keyspace}
+}
+
+func (r *LocationRepo) GetAllLocations() ([]models.Location, error) {
+	var locations []models.Location
+	query := "SELECT user_id, current_latitude, current_longitude, destination_latitude, destination_longitude, created_at, updated_at FROM " + r.keyspace + ".locations"
+	iter := r.session.Query(query).Iter()
+	var loc models.Location
+	for iter.Scan(&loc.UserId, &loc.CurrentLatitude, &loc.CurrentLongitude, &loc.DestinationLatitude, &loc.DestinationLongitude, &loc.CreatedAt, &loc.UpdatedAt) {
+		locations = append(locations, loc)
+	}
+	if err := iter.Close(); err != nil {
+		return nil, err
+	}
+	return locations, nil
 }
 
 func (r *LocationRepo) Create(location models.Location) error {
