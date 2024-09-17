@@ -31,7 +31,10 @@ func (r *RedisCache) StoreLocation(location models.Location) (models.Location, e
 		Latitude:  location.CurrentLatitude,
 		Longitude: location.CurrentLongitude,
 	}
-	destination := [2]float64{location.DestinationLatitude, location.DestinationLongitude}
+	destination := map[string]interface{}{
+		"destination_lat": location.DestinationLatitude,
+		"destination_lon": location.DestinationLongitude,
+	}
 
 	_, err = r.redisClient.GeoAdd(r.ctx, location.UserId, &currentLocation).Result()
 	if err != nil {
@@ -39,7 +42,7 @@ func (r *RedisCache) StoreLocation(location models.Location) (models.Location, e
 	}
 	r.redisClient.Expire(r.ctx, location.UserId, 60*time.Second)
 
-	err = r.redisClient.HSet(r.ctx, location.UserId, fmt.Sprintf("%f,%f", destination[0], destination[1])).Err()
+	err = r.redisClient.HSet(r.ctx, location.UserId, destination).Err()
 	if err != nil {
 		log.Fatalf("Error adding destination: %v", err)
 	}
