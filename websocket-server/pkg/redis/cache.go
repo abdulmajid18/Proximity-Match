@@ -27,26 +27,31 @@ func NewRedisCache(ctx context.Context, redisClient *redis.Client) RedisCacheHan
 
 func (r *RedisCache) Getlocation(key string) (models.Location, error) {
 	location := models.Location{}
-	geoLocation, err := r.redisClient.GeoPos(r.ctx, "user_locations", key).Result()
+	geoKey := "geo:" + key
+	geoLocation, err := r.redisClient.GeoPos(r.ctx, geoKey, key).Result()
 	if err == redis.Nil {
 		return location, fmt.Errorf("user %s not found in Redis", key)
 	} else if err != nil {
 		return location, fmt.Errorf("error getting user location from Redis: %w", err)
 	}
 
+	if len(geoLocation) == 0 || geoLocation[0] == nil {
+		return location, fmt.Errorf("no geolocation data found for user %s", key)
+	}
 	location.UserId = key
 	location.CurrentLatitude = geoLocation[0].Latitude
 	location.CurrentLongitude = geoLocation[0].Longitude
 
-	destination, err := r.redisClient.HMGet(r.ctx, key, "destination_lat", "destination_lon").Result()
+	destKey := "dest:" + location.UserId
+	destination, err := r.redisClient.HMGet(r.ctx, destKey, "destination_lat", "destination_lon").Result()
 	if err == redis.Nil {
 		log.Printf("Destination for user %s not found in Redis\n", key)
 	} else if err != nil {
-		return location, fmt.Errorf("error getting user destination from Redis")
+		return location, fmt.Errorf("error getting user destination from Redis: %w", err)
+	} else if len(destination) == 2 && destination[0] != nil && destination[1] != nil {
+		location.DestinationLatitude = parseFloat(destination[0])
+		location.DestinationLongitude = parseFloat(destination[1])
 	}
-
-	location.DestinationLatitude = parseFloat(destination[0])
-	location.DestinationLongitude = parseFloat(destination[1])
 
 	return location, nil
 }
@@ -68,16 +73,18 @@ func (r *RedisCache) StoreLocation(location models.Location) (models.Location, e
 		"destination_lat": location.DestinationLatitude,
 		"destination_lon": location.DestinationLongitude,
 	}
+	geoKey := "geo:" + location.UserId
 
-	_, err = r.redisClient.GeoAdd(r.ctx, location.UserId, &currentLocation).Result()
+	_, err = r.redisClient.GeoAdd(r.ctx, geoKey, &currentLocation).Result()
 	if err != nil {
 		return models.Location{}, fmt.Errorf("could not store user in Redis: %w", err)
 	}
 	r.redisClient.Expire(r.ctx, location.UserId, 60*time.Second)
 
-	err = r.redisClient.HSet(r.ctx, location.UserId, destination).Err()
+	destKey := "dest:" + location.UserId
+	err = r.redisClient.HSet(r.ctx, destKey, destination).Err()
 	if err != nil {
-		log.Fatalf("Error adding destination: %v", err)
+		return models.Location{}, fmt.Errorf("error adding destination: %w", err)
 	}
 
 	log.Printf("Added user %s with current location and destination.\n", location.UserId)
