@@ -1,6 +1,6 @@
 package context
 
-import "websocket-server/internal/models"
+import "matching-service/websocket-server/internal/models"
 
 type UserContext struct {
 	UserID   string

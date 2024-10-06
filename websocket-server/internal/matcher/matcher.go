@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"matching-service/websocket-server/internal/models"
+	"matching-service/websocket-server/internal/repository"
 	"math"
-	"websocket-server/internal/models"
-	"websocket-server/internal/repository"
 
 	"github.com/gocql/gocql"
 	"github.com/google/uuid"

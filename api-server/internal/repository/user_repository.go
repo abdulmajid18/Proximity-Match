@@ -1,7 +1,7 @@
 package repository
 
 import (
-	"matching-service/internal/models"
+	"matching-service/api-server/internal/models"
 
 	"gorm.io/gorm"
 )

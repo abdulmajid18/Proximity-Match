@@ -1,11 +1,11 @@
 package main
 
 import (
-	"matching-service/internal/handlers"
-	"matching-service/internal/middleware"
-	"matching-service/internal/repository"
-	"matching-service/internal/services"
-	"matching-service/pkg/database"
+	"matching-service/api-server/internal/handlers"
+	"matching-service/api-server/internal/middleware"
+	"matching-service/api-server/internal/repository"
+	"matching-service/api-server/internal/services"
+	"matching-service/api-server/pkg/database"
 
 	"github.com/gin-gonic/gin"
 	swaggerFiles "github.com/swaggo/files"

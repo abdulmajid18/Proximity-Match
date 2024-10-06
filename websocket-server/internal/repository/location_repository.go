@@ -1,8 +1,8 @@
 package repository
 
 import (
+	"matching-service/websocket-server/internal/models"
 	"time"
-	"websocket-server/internal/models"
 
 	"github.com/gocql/gocql"
 	"github.com/google/uuid"
@@ -19,18 +19,18 @@ type LocationRepository interface {
 }
 
 type LocationRepo struct {
-	session  *gocql.Session
-	keyspace string
+	Session  *gocql.Session
+	Keyspace string
 }
 
 func NewLocationRepo(session *gocql.Session, keyspace string) LocationRepository {
-	return &LocationRepo{session: session, keyspace: keyspace}
+	return &LocationRepo{Session: session, Keyspace: keyspace}
 }
 
 func (r *LocationRepo) GetAllLocations() ([]models.Location, error) {
 	var locations []models.Location
-	query := "SELECT user_id, current_latitude, current_longitude, destination_latitude, destination_longitude, created_at, updated_at FROM " + r.keyspace + ".locations"
-	iter := r.session.Query(query).Iter()
+	query := "SELECT user_id, current_latitude, current_longitude, destination_latitude, destination_longitude, created_at, updated_at FROM " + r.Keyspace + ".locations"
+	iter := r.Session.Query(query).Iter()
 	var loc models.Location
 	for iter.Scan(&loc.UserId, &loc.CurrentLatitude, &loc.CurrentLongitude, &loc.DestinationLatitude, &loc.DestinationLongitude, &loc.CreatedAt, &loc.UpdatedAt) {
 		locations = append(locations, loc)
@@ -43,12 +43,12 @@ func (r *LocationRepo) GetAllLocations() ([]models.Location, error) {
 
 func (r *LocationRepo) Create(location models.Location) error {
 	query := `
-        INSERT INTO ` + r.keyspace + `.locations (
+        INSERT INTO ` + r.Keyspace + `.locations (
             user_id, current_latitude, current_longitude, 
             destination_latitude, destination_longitude, created_at, updated_at
         ) VALUES (?, ?, ?, ?, ?, ?, ?)
     `
-	err := r.session.Query(query,
+	err := r.Session.Query(query,
 		location.UserId,
 		location.CurrentLatitude,
 		location.CurrentLongitude,
@@ -65,10 +65,10 @@ func (r *LocationRepo) GetByUserID(userID string) (models.Location, error) {
 	var location models.Location
 	query := `
 	SELECT user_id, current_latitude, current_longitude, destination_latitude, destination_longitude, created_at, updated_at
-	FROM ` + r.keyspace + `.locations
+	FROM ` + r.Keyspace + `.locations
 	WHERE user_id = ?`
 
-	err := r.session.Query(query, userID).Scan(
+	err := r.Session.Query(query, userID).Scan(
 		&location.UserId,
 		&location.CurrentLatitude,
 		&location.CurrentLongitude,
@@ -81,7 +81,7 @@ func (r *LocationRepo) GetByUserID(userID string) (models.Location, error) {
 }
 
 func (r *LocationRepo) Update(location models.Location) error {
-	err := r.session.Query(`
+	err := r.Session.Query(`
         UPDATE locations
         SET current_latitude = ?, current_longitude = ?, destination_latitude = ?, destination_longitude = ?, updated_at = ?
         WHERE user_id = ?`,
@@ -96,7 +96,7 @@ func (r *LocationRepo) Update(location models.Location) error {
 }
 
 func (r *LocationRepo) Delete(userID uuid.UUID) error {
-	err := r.session.Query(`
+	err := r.Session.Query(`
         DELETE FROM locations
         WHERE user_id = ?`,
 		userID,
@@ -105,7 +105,7 @@ func (r *LocationRepo) Delete(userID uuid.UUID) error {
 }
 
 func (r *LocationRepo) UpdateDestination(userID uuid.UUID, latitude float64, longitude float64) error {
-	err := r.session.Query(`
+	err := r.Session.Query(`
 		UPDATE locations
 		SET destination_latitude = ?, destination_longitude = ?, updated_at = ?
 		WHERE user_id = ?`,
@@ -118,7 +118,7 @@ func (r *LocationRepo) UpdateDestination(userID uuid.UUID, latitude float64, lon
 }
 
 func (r *LocationRepo) UpdateCurrentLocation(userID uuid.UUID, latitude float64, longitude float64) error {
-	err := r.session.Query(`
+	err := r.Session.Query(`
 		UPDATE locations
 		SET current_latitude = ?, current_longitude = ?, updated_at = ?
 		WHERE user_id = ?`,

@@ -2,13 +2,14 @@ package handler
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
+	"matching-service/websocket-server/internal/context"
+	"matching-service/websocket-server/internal/models"
+	"matching-service/websocket-server/internal/repository"
+	"matching-service/websocket-server/pkg/redis"
 	"net/http"
 	"time"
-	"websocket-server/internal/context"
-	"websocket-server/internal/models"
-	"websocket-server/internal/repository"
-	"websocket-server/redis"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -23,10 +24,10 @@ var upgrader = websocket.Upgrader{
 
 type WebSocketHandler struct {
 	LocationRepo repository.LocationRepository
-	Cache        redis.RedisCache
+	Cache        redis.RedisCacheHandler
 }
 
-func NewWebSocketHandler(repo repository.LocationRepository, cache redis.RedisCache) *WebSocketHandler {
+func NewWebSocketHandler(repo repository.LocationRepository, cache redis.RedisCacheHandler) *WebSocketHandler {
 	return &WebSocketHandler{LocationRepo: repo, Cache: cache}
 }
 
@@ -82,7 +83,7 @@ func (h *WebSocketHandler) processMessage(conn *websocket.Conn, message models.W
 	case "update":
 		return h.updateLocation(message, userContext)
 	case "delete":
-		return h.deleteLocation(message, userContext)
+		return h.deleteLocation(userContext)
 	case "update_destination":
 		return h.updateDestination(message, userContext)
 	case "update_current_location":
@@ -118,14 +119,14 @@ func (h *WebSocketHandler) createLocation(message models.WebSocketMessage, userC
 		UpdatedAt:            time.Now(),
 	}
 
-	_, err := h.LocationRepo.Create(location)
+	err := h.LocationRepo.Create(location)
 	if err != nil {
 		return err
 	}
-	location, err = h.Cache.StoreLocation(location)
+	go h.cacheLocation(location)
 	userContext.Location = location
 
-	return location
+	return nil
 }
 
 func (h *WebSocketHandler) updateLocation(message models.WebSocketMessage, userContext *context.UserContext) error {
@@ -137,17 +138,17 @@ func (h *WebSocketHandler) updateLocation(message models.WebSocketMessage, userC
 		DestinationLongitude: message.DestinationLongitude,
 		UpdatedAt:            time.Now(),
 	}
-	location, err := h.LocationRepo.Update(location)
+	err := h.LocationRepo.Update(location)
 	if err != nil {
 		return err
 	}
-	location, err = h.Cache.StoreLocation(location)
+	go h.cacheLocation(location)
 	userContext.Location = location
 
-	return location
+	return nil
 }
 
-func (h *WebSocketHandler) deleteLocation(message models.WebSocketMessage, userContext *context.UserContext) error {
+func (h *WebSocketHandler) deleteLocation(userContext *context.UserContext) error {
 	userIDParsed, err := uuid.Parse(userContext.UserID)
 	if err != nil {
 		return err
@@ -172,18 +173,38 @@ func (h *WebSocketHandler) updateCurrentLocation(message models.WebSocketMessage
 }
 
 func (h *WebSocketHandler) getUserLocation(userId string) (models.WebSocketMessage, error) {
-	location, err := h.Cache.GetLocation(userId)
+	location, err := h.getLocationFromCacheOrDB(userId)
 	if err != nil {
-		location, err := h.LocationRepo.GetByUserID(userId)
-		if err != nil {
-			return models.WebSocketMessage{Error: "Failed to get location"}, err
-		}
-		location, cacheErr := h.Cache.StoreLocation(location)
-		if cacheErr != nil {
-			log.Println("Failed to cache location after database retrieval:", cacheErr)
-		}
+		return models.WebSocketMessage{}, fmt.Errorf("failed to get location: %w", err)
 	}
 
+	return h.locationToWebSocketMessage(location), nil
+}
+
+func (h *WebSocketHandler) getLocationFromCacheOrDB(userId string) (models.Location, error) {
+	location, err := h.Cache.Getlocation(userId)
+	if err == nil {
+		return location, nil
+	}
+
+	location, err = h.LocationRepo.GetByUserID(userId)
+	if err != nil {
+		return models.Location{}, fmt.Errorf("failed to get location from database: %w", err)
+	}
+
+	go h.cacheLocation(location)
+
+	return location, nil
+}
+
+func (h *WebSocketHandler) cacheLocation(location models.Location) {
+	_, err := h.Cache.StoreLocation(location)
+	if err != nil {
+		log.Printf("Failed to cache location for user %s: %v", location.UserId, err)
+	}
+}
+
+func (h *WebSocketHandler) locationToWebSocketMessage(location models.Location) models.WebSocketMessage {
 	return models.WebSocketMessage{
 		UserID:               location.UserId,
 		Latitude:             location.CurrentLatitude,
@@ -192,5 +213,5 @@ func (h *WebSocketHandler) getUserLocation(userId string) (models.WebSocketMessa
 		DestinationLongitude: location.DestinationLongitude,
 		CreatedAt:            location.CreatedAt,
 		UpdatedAt:            location.UpdatedAt,
-	}, nil
+	}
 }

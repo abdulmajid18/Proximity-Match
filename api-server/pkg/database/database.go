@@ -3,7 +3,8 @@ package database
 import (
 	"fmt"
 	"log"
-	"matching-service/internal/models"
+	"matching-service/api-server/internal/models"
+
 	"os"
 
 	"github.com/joho/godotenv"

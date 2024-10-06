@@ -1,7 +1,7 @@
 package middleware
 
 import (
-	"matching-service/internal/auth"
+	"matching-service/api-server/internal/auth"
 	"net/http"
 	"strings"
 

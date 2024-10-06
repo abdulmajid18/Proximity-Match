@@ -3,41 +3,45 @@ package main
 import (
 	"context"
 	"log"
+	"matching-service/websocket-server/internal/handler"
+	"matching-service/websocket-server/internal/repository"
+	"matching-service/websocket-server/pkg/database"
+	"matching-service/websocket-server/pkg/redis"
 	"os"
-
-	"websocket-server/database"
-	"websocket-server/internal/handler"
-	"websocket-server/internal/repository"
-	"websocket-server/redis"
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 )
 
-var ctx = context.Background()
-
 func main() {
-	err := godotenv.Load()
-	if err != nil {
+	// Load environment variables
+	if err := godotenv.Load(); err != nil {
 		log.Fatalf("Error loading .env file: %v", err)
 	}
+
+	// Initialize database
 	keyspace := os.Getenv("CASSANDRA_KEYSPACE")
 	if keyspace == "" {
 		log.Fatalf("CASSANDRA_KEYSPACE environment variable is not set")
 	}
 	database.Init(keyspace)
-	redis.InitClient(ctx)
-	redisCache := redis.NewRedisCache(ctx, redis.GetClient())
 
+	// Initialize Redis
+	redisHost := os.Getenv("REDIS_HOST")
+	redisPort := os.Getenv("REDIS_PORT")
+	redis.InitClient(context.Background(), redisPort, redisHost)
+
+	redisClient := redis.GetClient()
+	redisCache := redis.NewRedisCache(context.Background(), redisClient)
+
+	// Create repository and handler
 	cassandraSession := database.GetSession()
 	locationRepo := repository.NewLocationRepo(cassandraSession, keyspace)
 	webSocketHandler := handler.NewWebSocketHandler(locationRepo, redisCache)
-	handleLocationWebSocket := webSocketHandler.HandleWebSocket
 
+	// Initialize Gin router
 	r := gin.Default()
-
-	// Define a route for WebSocket connections for location data
-	r.GET("/location", handleLocationWebSocket)
+	r.GET("/location", webSocketHandler.HandleWebSocket)
 
 	// Start the HTTP server
 	r.Run(":8081")

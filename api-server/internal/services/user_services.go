@@ -2,9 +2,9 @@ package services
 
 import (
 	"errors"
-	"matching-service/internal/auth"
-	"matching-service/internal/models"
-	"matching-service/internal/repository"
+	"matching-service/api-server/internal/auth"
+	"matching-service/api-server/internal/models"
+	"matching-service/api-server/internal/repository"
 
 	"golang.org/x/crypto/bcrypt"
 )

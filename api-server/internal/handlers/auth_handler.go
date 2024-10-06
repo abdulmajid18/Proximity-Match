@@ -1,8 +1,8 @@
 package handlers
 
 import (
-	"matching-service/internal/models"
-	"matching-service/internal/services"
+	"matching-service/api-server/internal/models"
+	"matching-service/api-server/internal/services"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
