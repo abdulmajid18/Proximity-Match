@@ -45,6 +45,8 @@ func InitDB() {
 	if err != nil {
 		log.Fatalf("Could not migrate database schema: %v", err)
 	}
+
+	log.Println("Database migrated successfully")
 }
 
 func GetDB() *gorm.DB {

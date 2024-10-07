@@ -1,7 +1,7 @@
 services:
   database:
       image: postgres:latest
-      container_name: matcher_db
+      container_name: ${POSTGRES_CONTAINER}
       environment:
         POSTGRES_DB: ${POSTGRES_DB}
         POSTGRES_USER: ${POSTGRES_USER}
