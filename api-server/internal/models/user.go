@@ -16,6 +16,9 @@ type User struct {
 	Username  string         `gorm:"unique;not null" json:"username" example:"johndoe"`
 	Password  string         `gorm:"not null" json:"-" swaggerignore:"true"`
 	Email     string         `gorm:"unique;not null" json:"email" example:"john@example.com"`
+
+	// Many-to-many relationship to represent the friends
+	Friends []*User `gorm:"many2many:user_friends" json:"friends"`
 }
 
 func (u *User) BeforeCreate(tx *gorm.DB) (err error) {
