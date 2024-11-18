@@ -1,53 +1,41 @@
 package redis
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
 	"matching-service/websocket-server/internal/models"
 )
 
-func (r *RedisCache) AddFriend(userId, friendId string) error {
-	key := fmt.Sprintf("friends:%s", userId)
-	_, err := r.redisClient.SAdd(r.ctx, key, friendId).Result()
-	return err
-}
-
-func (r *RedisCache) GetFriends(userId string) ([]string, error) {
-	key := fmt.Sprintf("friends:%s", userId)
-	return r.redisClient.SMembers(r.ctx, key).Result()
-}
-
-func (r *RedisCache) RemoveFriend(userId, friendId string) error {
-	key := fmt.Sprintf("friends:%s", userId)
-	return r.redisClient.SRem(r.ctx, key, friendId).Err()
-}
-
 func (r *RedisCache) PublishLocationUpdate(location models.Location) error {
-	friends, err := r.GetFriends(location.UserId)
-	if err != nil {
-		return fmt.Errorf("error getting friends: %w", err)
-	}
-
 	locationJSON, err := json.Marshal(location)
 	if err != nil {
 		return fmt.Errorf("error marshaling location: %w", err)
 	}
 
-	for _, friendId := range friends {
-		channel := fmt.Sprintf("location_updates:%s", friendId)
-		err = r.redisClient.Publish(r.ctx, channel, locationJSON).Err()
-		if err != nil {
-			log.Printf("Error publishing to channel %s: %v", channel, err)
-		}
+	channel := fmt.Sprintf("location_updates:%s", location.UserId)
+	err = r.redisClient.Publish(r.ctx, channel, locationJSON).Err()
+	if err != nil {
+		return fmt.Errorf("error publishing to channel %s: %w", channel, err)
 	}
 
 	return nil
 }
 
 func (r *RedisCache) SubscribeToFriendUpdates(userId string, updateChan chan<- models.Location) {
-	channel := fmt.Sprintf("location_updates:%s", userId)
-	pubsub := r.redisClient.Subscribe(r.ctx, channel)
+	friends, err := r.GetFriends(userId)
+	if err != nil {
+		log.Printf("Error getting friends for user %s: %v", userId, err)
+		return
+	}
+
+	channels := make([]string, len(friends))
+	for i, friendId := range friends {
+		channels[i] = fmt.Sprintf("location_updates:%s", friendId)
+	}
+
+	pubsub := r.redisClient.Subscribe(r.ctx, channels...)
 	defer pubsub.Close()
 
 	for {
@@ -68,13 +56,57 @@ func (r *RedisCache) SubscribeToFriendUpdates(userId string, updateChan chan<- m
 	}
 }
 
-func (r *RedisCache) StartLocationUpdateWorker(userId string) {
+func (r *RedisCache) StartLocationUpdateWorker(ctx context.Context, userId string) {
 	updateChan := make(chan models.Location, 100)
 	go r.SubscribeToFriendUpdates(userId, updateChan)
 
-	for location := range updateChan {
-		log.Printf("Received location update for friend %s: lat %f, lon %f",
-			location.UserId, location.CurrentLatitude, location.CurrentLongitude)
-		// Process the location update (e.g., update UI, trigger notifications, etc.)
+	for {
+		select {
+		case location := <-updateChan:
+			log.Printf("Received location update for friend %s: lat %f, lon %f",
+				location.UserId, location.CurrentLatitude, location.CurrentLongitude)
+			// Process the location update (e.g., update UI, trigger notifications, etc.)
+		case <-ctx.Done():
+			log.Println("Shutting down worker for user:", userId)
+			return
+		}
 	}
+}
+
+// Existing friend-related functions
+func (r *RedisCache) AddFriend(userId, friendId string) error {
+	key := fmt.Sprintf("friends:%s", userId)
+	_, err := r.redisClient.SAdd(r.ctx, key, friendId).Result()
+	if err != nil {
+		return err
+	}
+
+	// Resubscribe to include the new friend's channel
+	// This is a simplified approach; in practice, you might want to manage subscriptions more carefully
+	go r.refreshSubscriptions(userId)
+
+	return nil
+}
+
+func (r *RedisCache) RemoveFriend(userId, friendId string) error {
+	key := fmt.Sprintf("friends:%s", userId)
+	err := r.redisClient.SRem(r.ctx, key, friendId).Err()
+	if err != nil {
+		return err
+	}
+
+	// Resubscribe to exclude the removed friend's channel
+	go r.refreshSubscriptions(userId)
+
+	return nil
+}
+
+func (r *RedisCache) GetFriends(userId string) ([]string, error) {
+	key := fmt.Sprintf("friends:%s", userId)
+	return r.redisClient.SMembers(r.ctx, key).Result()
+}
+
+func (r *RedisCache) refreshSubscriptions(userId string) {
+	// Implementation to refresh subscriptions when friend list changes
+	// This is a placeholder and would need to be implemented based on your specific subscription management approach
 }
